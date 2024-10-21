@@ -20,26 +20,18 @@ export const users = sqliteTable('users', {
   ...commonColumns(),
   username: text('username').unique().notNull(),
   nickname: text('nickname'),
-  hashedPassword: text('hashed_password').notNull()
+  hashedPassword: text('hashed_password').notNull(),
+  avatar: text('avatar'),
+  role: text('role', { enum: ['admin', 'user'] }).default('user')
 })
+
 export const apps = sqliteTable('apps', {
   ...commonColumns(),
   name: text('name').unique().notNull(),
   logo: text('logo'),
   description: text('description'),
   invitedUsers: text('invited_users'),
-  documents: text('documents')
-})
-
-export const documents = sqliteTable('documents', {
-  ...commonColumns(),
-  title: text('title').notNull(),
-  publishTime: text('publish_time').default(sql`(datetime('now', 'localtime'))`),
-  templateId: text('template_id').references(() => templates.id),
-  content: text('content').notNull(),
-  lastEditTime: text('last_edit_time'),
-  lastEditorId: text('last_editor_id').references(() => users.id),
-  appId: text('app_id').references(() => apps.id)
+  creatorId: text('creator_id').references(() => users.id)
 })
 
 export const templates = sqliteTable('templates', {
@@ -47,6 +39,19 @@ export const templates = sqliteTable('templates', {
   title: text('title').notNull(),
   previewImage: text('preview_image'),
   htmlContent: text('html_content').notNull()
+})
+
+export const documents = sqliteTable('documents', {
+  ...commonColumns(),
+  title: text('title').notNull(),
+  // 为空表示草稿
+  publishTime: text('publish_time'),
+  templateId: text('template_id').references(() => templates.id),
+  // 富文本
+  content: text('content').notNull(),
+  lastEditTime: text('last_edit_time'),
+  lastEditorId: text('last_editor_id').references(() => users.id),
+  appId: text('app_id').references(() => apps.id)
 })
 
 export const usersRelations = relations(users, ({ many }) => ({

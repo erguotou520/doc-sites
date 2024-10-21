@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      '^/(api|login|register|webhook|info)': 'http://localhost:7879'
+      '^/(api|login|register|webhook|info)': 'http://localhost:9100'
     }
   },
   plugins: [

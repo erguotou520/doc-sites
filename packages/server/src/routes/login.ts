@@ -21,7 +21,7 @@ export async function addLoginRoutes(path: string, server: ServerType) {
         return 'Password is incorrect'
       }
       return {
-        token: await jwt.sign({ id: existedUser.id, nickname: existedUser.nickname! })
+        token: await jwt.sign({ id: existedUser.id, nickname: existedUser.nickname!, role: existedUser.role! })
       }
     },
     {

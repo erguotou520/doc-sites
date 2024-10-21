@@ -11,7 +11,8 @@ if (!adminUser) {
     {
       username: 'admin',
       nickname: 'Admin',
-      hashedPassword: await Bun.password.hash('Pa$$wo2d')
+      hashedPassword: await Bun.password.hash('Pa$$wo2d'),
+      role: 'admin'
     }
   ])
 }

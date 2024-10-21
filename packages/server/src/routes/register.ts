@@ -25,7 +25,7 @@ export async function addRegisterRoutes(path: string, server: ServerType) {
           })
           .returning()
         return {
-          token: await jwt.sign({ id: ret[0].id, nickname: ret[0].nickname! })
+          token: await jwt.sign({ id: ret[0].id, nickname: ret[0].nickname!, role: ret[0].role! })
         }
       } catch (error) {
         set.status = 500

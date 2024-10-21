@@ -15,5 +15,5 @@ COPY --from=builder /app/ /app/
 USER bun
 ENV NODE_ENV production
 VOLUME ["/app/db"]
-EXPOSE 7879/tcp
+EXPOSE 9100/tcp
 ENTRYPOINT ["sh", "start.sh"]

@@ -6,7 +6,7 @@ import { swagger } from '@elysiajs/swagger'
 import { Elysia } from 'elysia'
 import { registerAPIRoutes } from './routes'
 
-const port = process.env.PORT || 7879
+const port = process.env.PORT || 9100
 
 const server = new Elysia()
   .use(logger({ autoLogging: false, level: process.env.LOG_LEVEL ?? 'info' }))
