@@ -5,14 +5,14 @@ import { and, count, eq, sql } from 'drizzle-orm'
 import { t } from 'elysia'
 import type { APIGroupServerType } from '..'
 
-export async function addAppRoutes(path: string, server: APIGroupServerType) {
-  // get all user's apps
+export async function addDocumentRoutes(path: string, server: APIGroupServerType) {
+  // get all user's documents
   server.get(
     path,
     async ({ query, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
-      const cond = eq(apps.creatorId, user.id)
-      const list = await db.query.apps.findMany({
+      const cond = eq(documents.creatorId, user.id)
+      const list = await db.query.documents.findMany({
         where: cond,
         offset: query.offset ?? 0,
         limit: query.limit ?? 10
@@ -25,6 +25,18 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
         offset: t.MaybeEmpty(t.Numeric()),
         limit: t.MaybeEmpty(t.Numeric())
       })
+    }
+  )
+
+  // get my participated documents
+  server.get(
+    `${path}/participated`,
+    async ({ query, bearer, jwt }) => {
+      const user = (await jwt.verify(bearer)) as UserClaims
+      const list = await db.query.documents.findMany({
+        where: eq(documents.invitedUsers, user.id)
+      })
+      return list
     }
   )
 

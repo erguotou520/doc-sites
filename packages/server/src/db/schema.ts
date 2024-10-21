@@ -1,6 +1,6 @@
 import { v4 } from '@lukeed/uuid/secure'
 import { relations, sql } from 'drizzle-orm'
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export function genUUID() {
   return text('id')
@@ -27,18 +27,60 @@ export const users = sqliteTable('users', {
   documentsCount: integer('documents_count').default(20)
 })
 
+export const usersRelations = relations(users, ({ many }) => ({
+  apps: many(apps),
+  participatedApps: many(apps),
+  participatedDocuments: many(documents)
+}))
+
 export const apps = sqliteTable('apps', {
   ...commonColumns(),
   name: text('name').unique().notNull(),
   logo: text('logo'),
+  title: text('title').notNull(),
   description: text('description'),
-  invitedUsers: text('invited_users'),
   creatorId: text('creator_id').references(() => users.id)
 })
 
+export const appsRelations = relations(apps, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [apps.creatorId],
+    references: [users.id]
+  }),
+  documents: many(documents),
+  invitedUsers: many(users)
+}))
+
+export const usersToApps = sqliteTable(
+  'users_to_apps',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id),
+    appId: text('app_id')
+      .notNull()
+      .references(() => apps.id),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.appId] })
+  })
+)
+
+export const usersToAppsRelations = relations(usersToApps, ({ one }) => ({
+  app: one(apps, {
+    fields: [usersToApps.appId],
+    references: [apps.id],
+  }),
+  user: one(users, {
+    fields: [usersToApps.userId],
+    references: [users.id],
+  })
+}))
+
+
 export const templates = sqliteTable('templates', {
   ...commonColumns(),
-  title: text('title').notNull(),
+  name: text('name').unique().notNull(),
   previewImage: text('preview_image'),
   htmlContent: text('html_content').notNull()
 })
@@ -51,20 +93,11 @@ export const documents = sqliteTable('documents', {
   templateId: text('template_id').references(() => templates.id),
   // 富文本
   content: text('content').notNull(),
+  creatorId: text('creator_id').references(() => users.id),
   lastEditTime: text('last_edit_time'),
   lastEditorId: text('last_editor_id').references(() => users.id),
-  appId: text('app_id').references(() => apps.id)
+  appId: text('app_id').references(() => apps.id),
 })
-
-export const usersRelations = relations(users, ({ many }) => ({
-  apps: many(apps),
-  documents: many(documents)
-}))
-
-export const appsRelations = relations(apps, ({ many }) => ({
-  documents: many(documents),
-  invitedUsers: many(users)
-}))
 
 export const documentsRelations = relations(documents, ({ one, many }) => ({
   app: one(apps, {
@@ -78,5 +111,6 @@ export const documentsRelations = relations(documents, ({ one, many }) => ({
   template: one(templates, {
     fields: [documents.templateId],
     references: [templates.id]
-  })
+  }),
+  participatedUsers: many(users)
 }))

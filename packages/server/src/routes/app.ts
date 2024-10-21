@@ -1,7 +1,7 @@
 import { db } from '@/db'
-import { apps, documents, users } from '@/db/schema'
+import { apps, documents, users, usersToApps } from '@/db/schema'
 import type { UserClaims } from '@/types'
-import { and, count, eq, sql } from 'drizzle-orm'
+import { and, count, eq, inArray, sql } from 'drizzle-orm'
 import { t } from 'elysia'
 import type { APIGroupServerType } from '..'
 
@@ -25,6 +25,21 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
         offset: t.MaybeEmpty(t.Numeric()),
         limit: t.MaybeEmpty(t.Numeric())
       })
+    }
+  )
+
+  // get my participated apps
+  server.get(
+    `${path}/participated`,
+    async ({ bearer, jwt }) => {
+      const user = (await jwt.verify(bearer)) as UserClaims
+      const list = await db.query.usersToApps.findMany({
+        where: eq(usersToApps.userId, user.id)
+      })
+      const result = await db.query.apps.findMany({
+        where: inArray(apps.id, list.map((item) => item.appId))
+      })
+      return result
     }
   )
 
@@ -99,6 +114,7 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
     {
       body: t.Object({
         name: t.String(),
+        title: t.String(),
         logo: t.MaybeEmpty(t.String()),
         description: t.MaybeEmpty(t.String())
       })
@@ -134,7 +150,39 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
       }),
       body: t.Object({
         logo: t.MaybeEmpty(t.String()),
+        title: t.String(),
         description: t.MaybeEmpty(t.String())
+      })
+    }
+  )
+
+  // invite users to an app
+  server.post(
+    `${path}/:id/invite`,
+    async ({ body, params, bearer, jwt, set }) => {
+      const user = (await jwt.verify(bearer)) as UserClaims
+      // check if the user is the creator of the app
+      const app = await db.query.apps.findFirst({
+        where: and(eq(apps.creatorId, user.id), eq(apps.id, params.id))
+      })
+      if (!app) {
+        set.status = 403
+        return 'You are not the creator of this app'
+      }
+      if (!body.userIds.length) {
+        set.status = 400
+        return 'No users to invite'
+      }
+      // invite users to the app
+      const ret = await db.insert(usersToApps).values(body.userIds.map((id) => ({
+        userId: id,
+        appId: params.id
+      }))).returning()
+      return ret.length > 0
+    },
+    {
+      body: t.Object({
+        userIds: t.Array(t.String())
       })
     }
   )
@@ -154,6 +202,9 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
         return 'The app has documents, please delete the documents first'
       }
       try {
+        // delete the users to app relation
+        await db.delete(usersToApps).where(eq(usersToApps.appId, params.id))
+        // delete the app
         const ret = await db.delete(apps).where(and(eq(apps.creatorId, user.id), eq(apps.id, params.id))).returning()
         return ret.length > 0
       } catch (error) {
