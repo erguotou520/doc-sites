@@ -1,0 +1,23 @@
+{
+  "name": "doc-sites",
+  "author": "erguotou525@gmail.com",
+  "version": "0.1.0",
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@doremijs/biome-config": "^0.1.5",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.6.3"
+  },
+  "engines": {
+    "node": ">=10.0.0",
+    "bun": ">1.0.0"
+  },
+  "scripts": {
+    "format": "biome check --write ."
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}
