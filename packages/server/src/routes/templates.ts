@@ -5,8 +5,18 @@ import { and, count, eq, sql } from 'drizzle-orm'
 import { t } from 'elysia'
 import type { APIGroupServerType } from '..'
 
-export async function addAppRoutes(path: string, server: APIGroupServerType) {
-  // get all user's apps
+type BeforeHandle = NonNullable<Parameters<APIGroupServerType['get']>[2]>['beforeHandle']
+
+const roleCheck: BeforeHandle = async ({ bearer, jwt, set }) => {
+  const user = (await jwt.verify(bearer)) as UserClaims
+  if (user.role !== 'admin') {
+    set.status = 403
+    return 'Forbidden'
+  }
+}
+
+export async function addTemplateRoutes(path: string, server: APIGroupServerType) {
+  // get all templates
   server.get(
     path,
     async ({ query, bearer, jwt }) => {
@@ -21,6 +31,8 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
       return { list, total: total[0].value }
     },
     {
+      // @ts-ignore
+      beforeHandle: roleCheck,
       query: t.Object({
         offset: t.MaybeEmpty(t.Numeric()),
         limit: t.MaybeEmpty(t.Numeric())
@@ -29,26 +41,23 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
   )
 
   // get a app and its participants
-  server.get(
-    `${path}/:id`,
-    async ({ params, bearer, jwt }) => {
-      const user = (await jwt.verify(bearer)) as UserClaims
-      const app = await db.query.apps.findFirst({
-        with: {
-          invitedUsers: {
-            columns: {
-              id: true,
-              nickname: true,
-              username: true,
-              avatar: true
-            }
+  server.get(`${path}/:id`, async ({ params, bearer, jwt }) => {
+    const user = (await jwt.verify(bearer)) as UserClaims
+    const app = await db.query.apps.findFirst({
+      with: {
+        invitedUsers: {
+          columns: {
+            id: true,
+            nickname: true,
+            username: true,
+            avatar: true
           }
-        },
-        where: and(eq(apps.creatorId, user.id), eq(apps.id, params.id))
-      })
-      return app
-    }
-  )
+        }
+      },
+      where: and(eq(apps.creatorId, user.id), eq(apps.id, params.id))
+    })
+    return app
+  })
 
   // create a new app
   server.post(
@@ -68,9 +77,7 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
         return 'The app name already exists'
       }
       // 检查用户创建的应用数量是否已达到上限
-      const userAppsCount = await db.select({ count: count() })
-        .from(apps)
-        .where(eq(apps.creatorId, jwtUser.id));
+      const userAppsCount = await db.select({ count: count() }).from(apps).where(eq(apps.creatorId, jwtUser.id))
 
       if (userAppsCount[0].count >= (user!.appsCount as number)) {
         set.status = 400
@@ -145,16 +152,16 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
     async ({ params, bearer, jwt, set }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       // check if the app has any documents
-      const documentsCount = await db
-        .select({ count: count() })
-        .from(documents)
-        .where(eq(documents.appId, params.id))
+      const documentsCount = await db.select({ count: count() }).from(documents).where(eq(documents.appId, params.id))
       if (documentsCount[0].count > 0) {
         set.status = 400
         return 'The app has documents, please delete the documents first'
       }
       try {
-        const ret = await db.delete(apps).where(and(eq(apps.creatorId, user.id), eq(apps.id, params.id))).returning()
+        const ret = await db
+          .delete(apps)
+          .where(and(eq(apps.creatorId, user.id), eq(apps.id, params.id)))
+          .returning()
         return ret.length > 0
       } catch (error) {
         set.status = 500

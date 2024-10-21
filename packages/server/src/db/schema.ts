@@ -1,6 +1,6 @@
 import { v4 } from '@lukeed/uuid/secure'
 import { relations, sql } from 'drizzle-orm'
-import { sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 export function genUUID() {
   return text('id')
@@ -22,7 +22,9 @@ export const users = sqliteTable('users', {
   nickname: text('nickname'),
   hashedPassword: text('hashed_password').notNull(),
   avatar: text('avatar'),
-  role: text('role', { enum: ['admin', 'user'] }).default('user')
+  role: text('role', { enum: ['admin', 'user'] }).default('user'),
+  appsCount: integer('apps_count').default(10),
+  documentsCount: integer('documents_count').default(20)
 })
 
 export const apps = sqliteTable('apps', {

@@ -1,10 +1,12 @@
+import { db } from '@/db'
+import { users } from '@/db/schema'
+import type { UserClaims } from '@/types'
+import { eq } from 'drizzle-orm'
 import type { ServerType } from '..'
 import { addAppRoutes } from './app'
 import { addLoginRoutes } from './login'
-import { addOrganizationRoutes } from './organization'
 import { addRegisterRoutes } from './register'
 import { addUserRoutes } from './user'
-import { addWebhookRoutes } from './webhook'
 
 export function registerAPIRoutes(server: ServerType) {
   server.get('/health', () => ({ status: 'ok' }))
@@ -15,16 +17,24 @@ export function registerAPIRoutes(server: ServerType) {
   server.group(
     '/api',
     {
-      async beforeHandle({ bearer, set }) {
+      async beforeHandle({ bearer, jwt, set, store }) {
         if (!bearer) {
           set.status = 401
           return 'Unauthorized'
         }
+        const jwtUser = (await jwt.verify(bearer)) as UserClaims
+        const user = await db.query.users.findFirst({
+          where: eq(users.id, jwtUser.id)
+        })
+        if (!user) {
+          set.status = 401
+          return 'Unauthorized'
+        }
+        // store['user'] = user
       }
     },
     app => {
       addUserRoutes('/user', app)
-      addOrganizationRoutes('/organizations', app)
       addAppRoutes('/apps/:orgId', app)
       return app
     }
@@ -36,5 +46,4 @@ export function registerAPIRoutes(server: ServerType) {
       disableRegistration: process.env.DISABLE_REGISTRATION === 'true'
     }
   })
-  addWebhookRoutes('/webhook', server)
 }
