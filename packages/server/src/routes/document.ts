@@ -1,17 +1,17 @@
 import { db } from '@/db'
-import { apps, documents, users } from '@/db/schema'
+import { apps, documents, users, usersToApps, usersToDocuments } from '@/db/schema'
 import type { UserClaims } from '@/types'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { t } from 'elysia'
 import type { APIGroupServerType } from '..'
 
-export async function addDocumentRoutes(path: string, server: APIGroupServerType) {
-  // get all user's documents
+export async function addDocumentRoutes(appId: string, path: string, server: APIGroupServerType) {
+  // get app's documents
   server.get(
-    path,
-    async ({ query, bearer, jwt }) => {
+    `${appId}/${path}`,
+    async ({ query, params: { appId }, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
-      const cond = eq(documents.creatorId, user.id)
+      const cond = and(eq(documents.appId, appId), eq(documents.creatorId, user.id))
       const list = await db.query.documents.findMany({
         where: cond,
         offset: query.offset ?? 0,
@@ -21,6 +21,9 @@ export async function addDocumentRoutes(path: string, server: APIGroupServerType
       return { list, total: total[0].value }
     },
     {
+      params: t.Object({
+        appId: t.String()
+      }),
       query: t.Object({
         offset: t.MaybeEmpty(t.Numeric()),
         limit: t.MaybeEmpty(t.Numeric())
@@ -33,21 +36,31 @@ export async function addDocumentRoutes(path: string, server: APIGroupServerType
     `${path}/participated`,
     async ({ query, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
-      const list = await db.query.documents.findMany({
-        where: eq(documents.invitedUsers, user.id)
+      const cond = eq(usersToDocuments.userId, user.id)
+      const list = await db.query.usersToDocuments.findMany({
+        where: cond,
+        offset: query.offset ?? 0,
+        limit: query.limit ?? 10
       })
-      return list
+      const total = await db.select({ value: count() }).from(usersToDocuments).where(cond)
+      return { list, total: total[0].value }
+    },
+    {
+      query: t.Object({
+        offset: t.MaybeEmpty(t.Numeric()),
+        limit: t.MaybeEmpty(t.Numeric())
+      })
     }
   )
 
-  // get a app and its participants
+  // get a document and its participants
   server.get(
-    `${path}/:id`,
-    async ({ params, bearer, jwt }) => {
+    `${appId}/${path}/:id`,
+    async ({ params: { appId, id }, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
-      const app = await db.query.apps.findFirst({
+      const document = await db.query.documents.findFirst({
         with: {
-          invitedUsers: {
+          participatedUsers: {
             columns: {
               id: true,
               nickname: true,
@@ -56,42 +69,49 @@ export async function addDocumentRoutes(path: string, server: APIGroupServerType
             }
           }
         },
-        where: and(eq(apps.creatorId, user.id), eq(apps.id, params.id))
+        where: and(eq(documents.appId, appId), eq(documents.creatorId, user.id), eq(documents.id, id))
       })
-      return app
+      return document
+    },
+    {
+      params: t.Object({
+        appId: t.String(),
+        id: t.String()
+      })
     }
   )
 
-  // create a new app
+  // create a new document
   server.post(
-    path,
-    async ({ body, bearer, jwt, set }) => {
+    `${appId}/${path}`,
+    async ({ body, params: { appId }, bearer, jwt, set }) => {
       const jwtUser = (await jwt.verify(bearer)) as UserClaims
       const user = await db.query.users.findFirst({
         where: eq(users.id, jwtUser.id)
       })
       // 检查应用名称是否已存在
-      const existingApp = await db.query.apps.findFirst({
-        where: eq(apps.name, body.name)
+
+      const existingDocument = await db.query.documents.findFirst({
+        where: and(eq(documents.appId, appId), eq(documents.title, body.title))
       })
 
-      if (existingApp) {
+      if (existingDocument) {
         set.status = 400
-        return 'The app name already exists'
+        return 'The document title already exists'
       }
       // 检查用户创建的应用数量是否已达到上限
-      const userAppsCount = await db.select({ count: count() })
-        .from(apps)
-        .where(eq(apps.creatorId, jwtUser.id));
+      const userDocumentsCount = await db.select({ count: count() })
+        .from(documents)
+        .where(and(eq(documents.appId, appId), eq(documents.creatorId, jwtUser.id)));
 
-      if (userAppsCount[0].count >= (user!.appsCount as number)) {
+      if (userDocumentsCount[0].count >= (user!.documentsCount as number)) {
         set.status = 400
-        return `You have reached the maximum number of apps you can create (${user!.appsCount} apps)`
+        return `You have reached the maximum number of documents you can create (${user!.documentsCount} documents)`
       }
 
       try {
         const ret = await db
-          .insert(apps)
+          .insert(documents)
           .values([
             {
               ...body,
@@ -105,31 +125,30 @@ export async function addDocumentRoutes(path: string, server: APIGroupServerType
         return false
       } catch (error) {
         set.status = 400
-        return 'Failed to create app'
+        return 'Failed to create document'
       }
     },
     {
       body: t.Object({
-        name: t.String(),
-        logo: t.MaybeEmpty(t.String()),
-        description: t.MaybeEmpty(t.String())
+        title: t.String(),
+        content: t.String()
       })
     }
   )
 
   // update a app
   server.put(
-    `${path}/:id`,
-    async ({ body, params, bearer, jwt, set }) => {
+    `${appId}/${path}/:id`,
+    async ({ body, params: { appId, id }, bearer, jwt, set }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       try {
         const ret = await db
-          .update(apps)
+          .update(documents)
           .set({
             ...body,
             updatedAt: sql`(datetime('now', 'localtime'))`
           })
-          .where(and(eq(apps.creatorId, user.id), eq(apps.id, params.id)))
+          .where(and(eq(documents.appId, appId), eq(documents.creatorId, user.id), eq(documents.id, id)))
           .returning()
         if (ret.length > 0) {
           return ret[0]
@@ -142,6 +161,7 @@ export async function addDocumentRoutes(path: string, server: APIGroupServerType
     },
     {
       params: t.Object({
+        appId: t.String(),
         id: t.String()
       }),
       body: t.Object({
@@ -153,20 +173,23 @@ export async function addDocumentRoutes(path: string, server: APIGroupServerType
 
   // delete an app
   server.delete(
-    `${path}/:id`,
-    async ({ params, bearer, jwt, set }) => {
+    `${appId}/${path}/:id`,
+    async ({ params: { appId, id }, bearer, jwt, set }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       // check if the app has any documents
       const documentsCount = await db
         .select({ count: count() })
         .from(documents)
-        .where(eq(documents.appId, params.id))
+        .where(eq(documents.appId, appId))
       if (documentsCount[0].count > 0) {
         set.status = 400
         return 'The app has documents, please delete the documents first'
       }
       try {
-        const ret = await db.delete(apps).where(and(eq(apps.creatorId, user.id), eq(apps.id, params.id))).returning()
+        const ret = await db
+          .delete(documents)
+          .where(and(eq(documents.appId, appId), eq(documents.creatorId, user.id), eq(documents.id, id)))
+          .returning()
         return ret.length > 0
       } catch (error) {
         set.status = 500
@@ -175,6 +198,7 @@ export async function addDocumentRoutes(path: string, server: APIGroupServerType
     },
     {
       params: t.Object({
+        appId: t.String(),
         id: t.String()
       })
     }

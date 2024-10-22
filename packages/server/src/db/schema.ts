@@ -77,6 +77,29 @@ export const usersToAppsRelations = relations(usersToApps, ({ one }) => ({
   })
 }))
 
+export const usersToDocuments = sqliteTable('users_to_documents', {
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  documentId: text('document_id')
+    .notNull()
+    .references(() => documents.id)
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.documentId] })
+  })
+)
+
+export const usersToDocumentsRelations = relations(usersToDocuments, ({ one }) => ({
+  document: one(documents, {
+    fields: [usersToDocuments.documentId],
+    references: [documents.id],
+  }),
+  user: one(users, {
+    fields: [usersToDocuments.userId],
+    references: [users.id],
+  })
+}))
 
 export const templates = sqliteTable('templates', {
   ...commonColumns(),
