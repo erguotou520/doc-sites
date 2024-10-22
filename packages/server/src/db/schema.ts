@@ -29,8 +29,9 @@ export const users = sqliteTable('users', {
 
 export const usersRelations = relations(users, ({ many }) => ({
   apps: many(apps),
-  participatedApps: many(apps),
-  participatedDocuments: many(documents)
+  participatedApps: many(usersParticipatedApps),
+  invitedDocuments: many(userInvitedDocuments),
+  editedDocuments: many(userEditedDocuments)
 }))
 
 export const apps = sqliteTable('apps', {
@@ -48,10 +49,10 @@ export const appsRelations = relations(apps, ({ one, many }) => ({
     references: [users.id]
   }),
   documents: many(documents),
-  invitedUsers: many(users)
+  participatedUsers: many(usersParticipatedApps)
 }))
 
-export const usersToApps = sqliteTable(
+export const usersParticipatedApps = sqliteTable(
   'users_to_apps',
   {
     userId: text('user_id')
@@ -66,18 +67,19 @@ export const usersToApps = sqliteTable(
   })
 )
 
-export const usersToAppsRelations = relations(usersToApps, ({ one }) => ({
+export const usersToAppsRelations = relations(usersParticipatedApps, ({ one }) => ({
   app: one(apps, {
-    fields: [usersToApps.appId],
+    fields: [usersParticipatedApps.appId],
     references: [apps.id],
   }),
   user: one(users, {
-    fields: [usersToApps.userId],
+    fields: [usersParticipatedApps.userId],
     references: [users.id],
   })
 }))
 
-export const usersToDocuments = sqliteTable('users_to_documents', {
+// user invited documents
+export const userInvitedDocuments = sqliteTable('users_to_documents', {
   userId: text('user_id')
     .notNull()
     .references(() => users.id),
@@ -90,13 +92,38 @@ export const usersToDocuments = sqliteTable('users_to_documents', {
   })
 )
 
-export const usersToDocumentsRelations = relations(usersToDocuments, ({ one }) => ({
+export const userInvitedDocumentsRelations = relations(userInvitedDocuments, ({ one }) => ({
   document: one(documents, {
-    fields: [usersToDocuments.documentId],
+    fields: [userInvitedDocuments.documentId],
     references: [documents.id],
   }),
   user: one(users, {
-    fields: [usersToDocuments.userId],
+    fields: [userInvitedDocuments.userId],
+    references: [users.id],
+  })
+}))
+
+// user edited documents
+export const userEditedDocuments = sqliteTable('users_to_documents', {
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id),
+  documentId: text('document_id')
+    .notNull()
+    .references(() => documents.id)
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.documentId] })
+  })
+)
+
+export const userEditedDocumentsRelations = relations(userEditedDocuments, ({ one }) => ({
+  document: one(documents, {
+    fields: [userEditedDocuments.documentId],
+    references: [documents.id],
+  }),
+  user: one(users, {
+    fields: [userEditedDocuments.userId],
     references: [users.id],
   })
 }))
@@ -111,10 +138,8 @@ export const templates = sqliteTable('templates', {
 export const documents = sqliteTable('documents', {
   ...commonColumns(),
   title: text('title').notNull(),
-  // 为空表示草稿
   publishTime: text('publish_time'),
   templateId: text('template_id').references(() => templates.id),
-  // 富文本
   content: text('content').notNull(),
   creatorId: text('creator_id').references(() => users.id),
   lastEditTime: text('last_edit_time'),
@@ -135,5 +160,6 @@ export const documentsRelations = relations(documents, ({ one, many }) => ({
     fields: [documents.templateId],
     references: [templates.id]
   }),
-  participatedUsers: many(users)
+  invitedUsers: many(userInvitedDocuments),
+  editedUsers: many(userEditedDocuments),
 }))

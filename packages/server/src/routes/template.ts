@@ -1,11 +1,10 @@
 import { db } from '@/db'
 import { documents, templates } from '@/db/schema'
 import type { UserClaims } from '@/types'
+import type { BeforeHandle } from '@/types/app'
 import { count, eq, sql } from 'drizzle-orm'
 import { t } from 'elysia'
 import type { APIGroupServerType } from '..'
-
-type BeforeHandle = NonNullable<Parameters<APIGroupServerType['get']>[2]>['beforeHandle']
 
 const roleCheck: BeforeHandle = async ({ bearer, jwt, set }) => {
   const user = (await jwt.verify(bearer)) as UserClaims

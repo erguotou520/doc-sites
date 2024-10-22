@@ -1,5 +1,5 @@
 import { db } from '@/db'
-import { apps, documents, users, usersToApps } from '@/db/schema'
+import { apps, documents, users, usersParticipatedApps } from '@/db/schema'
 import type { UserClaims } from '@/types'
 import { and, count, eq, inArray, sql } from 'drizzle-orm'
 import { t } from 'elysia'
@@ -33,8 +33,8 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
     `${path}/participated`,
     async ({ bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
-      const list = await db.query.usersToApps.findMany({
-        where: eq(usersToApps.userId, user.id)
+      const list = await db.query.usersParticipatedApps.findMany({
+        where: eq(usersParticipatedApps.userId, user.id)
       })
       const result = await db.query.apps.findMany({
         where: inArray(apps.id, list.map((item) => item.appId))
@@ -50,12 +50,16 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
       const user = (await jwt.verify(bearer)) as UserClaims
       const app = await db.query.apps.findFirst({
         with: {
-          invitedUsers: {
-            columns: {
-              id: true,
-              nickname: true,
-              username: true,
-              avatar: true
+          participatedUsers: {
+            with: {
+              user: {
+                columns: {
+                  id: true,
+                  nickname: true,
+                  username: true,
+                  avatar: true
+                }
+              }
             }
           }
         },
@@ -88,7 +92,7 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
         .where(eq(apps.creatorId, jwtUser.id));
 
       if (userAppsCount[0].count >= (user!.appsCount as number)) {
-        set.status = 400
+        set.status = 403
         return `You have reached the maximum number of apps you can create (${user!.appsCount} apps)`
       }
 
@@ -98,7 +102,7 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
           .values([
             {
               ...body,
-              creatorId: user.id
+              creatorId: user!.id
             }
           ])
           .returning()
@@ -140,7 +144,7 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
         }
         return false
       } catch (error) {
-        set.status = 400
+        set.status = 500
         return 'Failed to update app'
       }
     },
@@ -174,7 +178,7 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
         return 'No users to invite'
       }
       // invite users to the app
-      const ret = await db.insert(usersToApps).values(body.userIds.map((id) => ({
+      const ret = await db.insert(usersParticipatedApps).values(body.userIds.map((id) => ({
         userId: id,
         appId: params.id
       }))).returning()
@@ -203,7 +207,7 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
       }
       try {
         // delete the users to app relation
-        await db.delete(usersToApps).where(eq(usersToApps.appId, params.id))
+        await db.delete(usersParticipatedApps).where(eq(usersParticipatedApps.appId, params.id))
         // delete the app
         const ret = await db.delete(apps).where(and(eq(apps.creatorId, user.id), eq(apps.id, params.id))).returning()
         return ret.length > 0
