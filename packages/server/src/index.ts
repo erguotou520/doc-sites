@@ -8,7 +8,7 @@ import { registerAPIRoutes } from './routes'
 
 const port = process.env.PORT || 9100
 
-const server = new Elysia()
+export const server = new Elysia()
   .use(logger({ autoLogging: false, level: process.env.LOG_LEVEL ?? 'info' }))
   // .use(app => app.derive(({ request }) => ({ ip: app.server?.requestIP(request) })))
   .use(
@@ -37,19 +37,3 @@ server.onRequest(({ request }) => {
 server.listen(port)
 
 console.log(`Server is running on http://${server.server?.hostname}:${port}`)
-
-export type ServerType = typeof server
-
-type ReplaceBaseUrlServerType<T extends Elysia, NewBaseUrl extends string> = T extends Elysia<
-  infer _,
-  infer P1,
-  infer P2,
-  infer P3,
-  infer P4,
-  infer P5,
-  infer P6
->
-  ? Elysia<NewBaseUrl, P1, P2, P3, P4, P5, P6>
-  : never
-
-export type APIGroupServerType = ReplaceBaseUrlServerType<ServerType, '/api'>

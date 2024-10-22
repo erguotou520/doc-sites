@@ -1,11 +1,10 @@
 import { db } from '@/db'
 import { apps, documents, users, usersParticipatedApps } from '@/db/schema'
-import type { UserClaims } from '@/types'
+import type { ServerType, UserClaims } from '@/types'
 import { and, count, eq, inArray, sql } from 'drizzle-orm'
 import { t } from 'elysia'
-import type { APIGroupServerType } from '..'
 
-export async function addAppRoutes(path: string, server: APIGroupServerType) {
+export async function addAppRoutes(path: string, server: ServerType) {
   // get all user's apps
   server.get(
     path,
@@ -77,16 +76,16 @@ export async function addAppRoutes(path: string, server: APIGroupServerType) {
       const user = await db.query.users.findFirst({
         where: eq(users.id, jwtUser.id)
       })
-      // 检查应用名称是否已存在
-      const existingApp = await db.query.apps.findFirst({
+      // check if name existed
+      const existing = await db.query.apps.findFirst({
         where: eq(apps.name, body.name)
       })
 
-      if (existingApp) {
+      if (existing) {
         set.status = 400
         return 'The app name already exists'
       }
-      // 检查用户创建的应用数量是否已达到上限
+      // check if user reached the maximum number of apps
       const userAppsCount = await db.select({ count: count() })
         .from(apps)
         .where(eq(apps.creatorId, jwtUser.id));

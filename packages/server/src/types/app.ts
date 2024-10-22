@@ -1,3 +1,5 @@
-import type { APIGroupServerType } from '..'
+import type { server } from '../index'
 
-export type BeforeHandle = NonNullable<Parameters<APIGroupServerType['get']>[2]>['beforeHandle']
+export type ServerType = typeof server
+
+export type BeforeHandle = NonNullable<Parameters<ServerType['get']>[2]>['beforeHandle']

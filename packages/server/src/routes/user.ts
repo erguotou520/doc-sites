@@ -1,11 +1,10 @@
 import { db } from '@/db'
 import { users } from '@/db/schema'
-import type { UserClaims } from '@/types'
+import type { ServerType, UserClaims } from '@/types'
 import { eq, sql } from 'drizzle-orm'
 import { t } from 'elysia'
-import type { APIGroupServerType } from '..'
 
-export async function addUserRoutes(path: string, server: APIGroupServerType) {
+export async function addUserRoutes(path: string, server: ServerType) {
   // get all apps created by the user
   server.get(`${path}/me`, async ({ bearer, jwt }) => {
     const user = (await jwt.verify(bearer)) as UserClaims

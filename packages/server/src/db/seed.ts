@@ -17,4 +17,13 @@ if (!adminUser) {
   ])
 }
 
+const tags = await db.query.tags.findMany()
+if (tags.length === 0) {
+  await db.insert(schema.tags).values([
+    { name: '用户服务协议', color: '#8F8FBD' },
+    { name: '隐私政策', color: '#E9C2A6' },
+    { name: '关于我们', color: '#238E68' }
+  ])
+}
+
 console.log('Seeding complete.')

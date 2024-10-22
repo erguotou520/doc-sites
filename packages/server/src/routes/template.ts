@@ -1,10 +1,10 @@
 import { db } from '@/db'
 import { documents, templates } from '@/db/schema'
 import type { UserClaims } from '@/types'
+import type { ServerType } from '@/types'
 import type { BeforeHandle } from '@/types/app'
 import { count, eq, sql } from 'drizzle-orm'
 import { t } from 'elysia'
-import type { APIGroupServerType } from '..'
 
 const roleCheck: BeforeHandle = async ({ bearer, jwt, set }) => {
   const user = (await jwt.verify(bearer)) as UserClaims
@@ -14,7 +14,7 @@ const roleCheck: BeforeHandle = async ({ bearer, jwt, set }) => {
   }
 }
 
-export async function addTemplateRoutes(path: string, server: APIGroupServerType) {
+export async function addTemplateRoutes(path: string, server: ServerType) {
   // get all templates
   server.get(
     path,

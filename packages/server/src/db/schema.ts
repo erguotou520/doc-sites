@@ -20,6 +20,8 @@ export const users = sqliteTable('users', {
   ...commonColumns(),
   username: text('username').unique().notNull(),
   nickname: text('nickname'),
+  email: text('email').unique(),
+  emailVerified: integer('email_verified', { mode: 'boolean' }).default(false),
   hashedPassword: text('hashed_password').notNull(),
   avatar: text('avatar'),
   role: text('role', { enum: ['admin', 'user'] }).default('user'),
@@ -86,7 +88,7 @@ export const userInvitedDocuments = sqliteTable('users_to_documents', {
   documentId: text('document_id')
     .notNull()
     .references(() => documents.id)
-  },
+},
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.documentId] })
   })
@@ -111,7 +113,7 @@ export const userEditedDocuments = sqliteTable('users_to_documents', {
   documentId: text('document_id')
     .notNull()
     .references(() => documents.id)
-  },
+},
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.documentId] })
   })
@@ -145,6 +147,9 @@ export const documents = sqliteTable('documents', {
   lastEditTime: text('last_edit_time'),
   lastEditorId: text('last_editor_id').references(() => users.id),
   appId: text('app_id').references(() => apps.id),
+  slug: text('slug').unique(),
+  // who can view this document
+  viewPermission: text('view_permission', { enum: ['public', 'editable', 'logged'] }).default('public')
 })
 
 export const documentsRelations = relations(documents, ({ one, many }) => ({
@@ -162,4 +167,25 @@ export const documentsRelations = relations(documents, ({ one, many }) => ({
   }),
   invitedUsers: many(userInvitedDocuments),
   editedUsers: many(userEditedDocuments),
+  tags: many(documentToTags)
 }))
+
+export const tags = sqliteTable('document_tags', {
+  ...commonColumns(),
+  name: text('name').notNull(),
+  color: text('color').default('#000000'),
+  category: text('category', { enum: ['document'] }).default('document'),
+  remark: text('remark')
+})
+
+export const tagsRelations = relations(tags, ({ many }) => ({
+  documents: many(documentToTags)
+}))
+
+export const documentToTags = sqliteTable('document_to_tags', {
+  documentId: text('document_id').references(() => documents.id),
+  tagId: text('tag_id').references(() => tags.id)
+}, (t) => ({
+  pk: primaryKey({ columns: [t.documentId, t.tagId] })
+})
+)

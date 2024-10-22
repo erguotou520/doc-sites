@@ -1,14 +1,13 @@
 import { db } from '@/db'
-import { apps, documents, userEditedDocuments, users, usersParticipatedApps } from '@/db/schema'
-import type { UserClaims } from '@/types'
+import { apps, documents, userEditedDocuments, userInvitedDocuments, users, usersParticipatedApps } from '@/db/schema'
+import type { ServerType, UserClaims } from '@/types'
 import { and, count, eq, exists, or, sql } from 'drizzle-orm'
 import { t } from 'elysia'
-import type { APIGroupServerType } from '..'
 
-export async function addDocumentRoutes(appId: string, path: string, server: APIGroupServerType) {
+export async function addDocumentRoutes(path: string, server: ServerType) {
   // get app's documents
   server.get(
-    `${appId}/${path}`,
+    `/${path}/:appId`,
     async ({ query, params: { appId }, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       const cond = and(eq(documents.appId, appId), eq(documents.creatorId, user.id))
@@ -55,7 +54,7 @@ export async function addDocumentRoutes(appId: string, path: string, server: API
 
   // get a document and its editors
   server.get(
-    `${appId}/${path}/:id`,
+    `/${path}/:appId/:id`,
     async ({ params: { appId, id }, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       const document = await db.query.documents.findFirst({
@@ -95,7 +94,7 @@ export async function addDocumentRoutes(appId: string, path: string, server: API
 
   // create a new document
   server.post(
-    `${appId}/${path}`,
+    `/${path}/:appId`,
     async ({ body: { publish, ...body }, params: { appId }, bearer, jwt, set }) => {
       const jwtUser = (await jwt.verify(bearer)) as UserClaims
       const user = await db.query.users.findFirst({
@@ -163,10 +162,14 @@ export async function addDocumentRoutes(appId: string, path: string, server: API
       }
     },
     {
+      params: t.Object({
+        appId: t.String()
+      }),
       body: t.Object({
         title: t.String(),
         content: t.String(),
         templateId: t.String(),
+        slug: t.String(),
         publish: t.Boolean()
       })
     }
@@ -174,7 +177,7 @@ export async function addDocumentRoutes(appId: string, path: string, server: API
 
   // update a document setting
   server.put(
-    `${appId}/${path}/:id`,
+    `/${path}/:appId/:id`,
     async ({ body: { publish, ...body }, params: { appId, id }, bearer, jwt, set }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       const document = await db.query.documents.findFirst({
@@ -217,6 +220,7 @@ export async function addDocumentRoutes(appId: string, path: string, server: API
       body: t.Object({
         title: t.String(),
         templateId: t.String(),
+        slug: t.String(),
         publish: t.MaybeEmpty(t.Boolean())
       })
     }
@@ -224,12 +228,12 @@ export async function addDocumentRoutes(appId: string, path: string, server: API
 
   // update a document content
   server.put(
-    `${appId}/${path}/:id/content`,
+    `/${path}/:appId/:id/content`,
     async ({ body: { content }, params: { appId, id }, bearer, jwt, set }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       // 检查用户是否有权限编辑该文档
       const document = await db.query.documents.findFirst({
-        where: eq(documents.id, id),
+        where: and(eq(documents.appId, appId), eq(documents.id, id)),
         with: {
           app: {
             with: {
@@ -237,6 +241,7 @@ export async function addDocumentRoutes(appId: string, path: string, server: API
             }
           },
           invitedUsers: true,
+          editedUsers: true
         }
       })
 
@@ -261,6 +266,13 @@ export async function addDocumentRoutes(appId: string, path: string, server: API
           lastEditTime: sql`(datetime('now', 'localtime'))`,
           lastEditorId: user.id
         }).where(eq(documents.id, id)).returning()
+        // record the editor if not exists
+        if (!document.editedUsers.some(u => u.userId === user.id)) {
+          await db.insert(userEditedDocuments).values({
+            documentId: id,
+            userId: user.id
+          })
+        }
         if (ret.length > 0) {
           return ret[0]
         }
@@ -281,9 +293,9 @@ export async function addDocumentRoutes(appId: string, path: string, server: API
     }
   )
 
-  // delete an document
+  // delete an document, only the creator can delete it
   server.delete(
-    `${appId}/${path}/:id`,
+    `/${path}/:appId/:id`,
     async ({ params: { appId, id }, bearer, jwt, set }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       try {
@@ -301,6 +313,50 @@ export async function addDocumentRoutes(appId: string, path: string, server: API
       params: t.Object({
         appId: t.String(),
         id: t.String()
+      })
+    }
+  )
+
+  // invite users to a document
+  server.post(
+    `/${path}/:appId/:id/invite`,
+    async ({ body, params: { appId, id }, bearer, jwt, set }) => {
+      const user = (await jwt.verify(bearer)) as UserClaims
+      // check if the document exists
+      const document = await db.query.documents.findFirst({
+        where: and(eq(documents.appId, appId), eq(documents.id, id)),
+        with: {
+          invitedUsers: true
+        }
+      })
+      if (!document) {
+        set.status = 404
+        return 'The document does not exist'
+      }
+      if (document.creatorId !== user.id) {
+        set.status = 403
+        return 'Only the creator can invite users to a document'
+      }
+      // remove the users that already invited
+      const usersToInvite = body.userIds.filter(userId => !document.invitedUsers.some(u => u.userId === userId))
+      try {
+        const ret = await db.insert(userInvitedDocuments).values(usersToInvite.map(userId => ({
+          documentId: id,
+          userId
+        }))).returning()
+        return ret.length > 0
+      } catch (error) {
+        set.status = 500
+        return 'Failed to invite users to a document'
+      }
+    },
+    {
+      params: t.Object({
+        appId: t.String(),
+        id: t.String()
+      }),
+      body: t.Object({
+        userIds: t.Array(t.String())
       })
     }
   )

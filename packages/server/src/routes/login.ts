@@ -1,8 +1,8 @@
 import { db } from '@/db'
 import { users } from '@/db/schema'
+import type { ServerType } from '@/types'
 import { eq } from 'drizzle-orm'
 import { t } from 'elysia'
-import type { ServerType } from '..'
 
 export async function addLoginRoutes(path: string, server: ServerType) {
   server.post(
