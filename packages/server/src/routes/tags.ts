@@ -18,11 +18,9 @@ export async function addTagsRoutes(path: string, server: ServerType) {
       return { list, total: total[0].value }
     },
     {
-      // @ts-ignore
-      beforeHandle: isAdmin,
       query: t.Object({
-        offset: t.MaybeEmpty(t.Numeric()),
-        limit: t.MaybeEmpty(t.Numeric())
+        offset: t.Optional(t.Numeric()),
+        limit: t.Optional(t.Numeric())
       })
     }
   )
@@ -57,9 +55,9 @@ export async function addTagsRoutes(path: string, server: ServerType) {
       beforeHandle: isAdmin,
       body: t.Object({
         name: t.String(),
-        color: t.MaybeEmpty(t.String()),
+        color: t.Optional(t.String()),
         category: t.Any([t.Literal('document')]),
-        remark: t.MaybeEmpty(t.String())
+        remark: t.Optional(t.String())
       })
     }
   )
@@ -87,14 +85,15 @@ export async function addTagsRoutes(path: string, server: ServerType) {
       }
     },
     {
+      beforeHandle: isAdmin,
       params: t.Object({
         id: t.String()
       }),
       body: t.Object({
         name: t.String(),
-        color: t.MaybeEmpty(t.String()),
+        color: t.Optional(t.String()),
         category: t.Any([t.Literal('document')]),
-        remark: t.MaybeEmpty(t.String())
+        remark: t.Optional(t.String())
       })
     }
   )
@@ -113,6 +112,7 @@ export async function addTagsRoutes(path: string, server: ServerType) {
       }
     },
     {
+      beforeHandle: isAdmin,
       params: t.Object({
         id: t.String()
       })

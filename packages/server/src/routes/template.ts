@@ -1,24 +1,15 @@
 import { db } from '@/db'
 import { documents, templates } from '@/db/schema'
-import type { UserClaims } from '@/types'
 import type { ServerType } from '@/types'
-import type { BeforeHandle } from '@/types/app'
+import { isAdmin } from '@/utils'
 import { count, eq, sql } from 'drizzle-orm'
 import { t } from 'elysia'
-
-const roleCheck: BeforeHandle = async ({ bearer, jwt, set }) => {
-  const user = (await jwt.verify(bearer)) as UserClaims
-  if (user.role !== 'admin') {
-    set.status = 403
-    return 'Forbidden'
-  }
-}
 
 export async function addTemplateRoutes(path: string, server: ServerType) {
   // get all templates
   server.get(
     path,
-    async ({ query, bearer, jwt }) => {
+    async ({ query }) => {
       const list = await db.query.templates.findMany({
         offset: query.offset ?? 0,
         limit: query.limit ?? 10
@@ -27,11 +18,9 @@ export async function addTemplateRoutes(path: string, server: ServerType) {
       return { list, total: total[0].value }
     },
     {
-      // @ts-ignore
-      beforeHandle: roleCheck,
       query: t.Object({
-        offset: t.MaybeEmpty(t.Numeric()),
-        limit: t.MaybeEmpty(t.Numeric())
+        offset: t.Optional(t.Numeric()),
+        limit: t.Optional(t.Numeric())
       })
     }
   )
@@ -39,7 +28,7 @@ export async function addTemplateRoutes(path: string, server: ServerType) {
   // create a new template
   server.post(
     path,
-    async ({ body, bearer, jwt, set }) => {
+    async ({ body, set }) => {
       // check if the template name already exists
       const existingTemplate = await db.query.templates.findFirst({
         where: eq(templates.name, body.name)
@@ -51,10 +40,7 @@ export async function addTemplateRoutes(path: string, server: ServerType) {
       }
 
       try {
-        const ret = await db
-          .insert(templates)
-          .values([body])
-          .returning()
+        const ret = await db.insert(templates).values([body]).returning()
         if (ret.length > 0) {
           return ret[0]
         }
@@ -65,9 +51,10 @@ export async function addTemplateRoutes(path: string, server: ServerType) {
       }
     },
     {
+      beforeHandle: isAdmin,
       body: t.Object({
         name: t.String(),
-        previewImage: t.MaybeEmpty(t.String()),
+        previewImage: t.Optional(t.String()),
         htmlContent: t.String()
       })
     }
@@ -96,11 +83,12 @@ export async function addTemplateRoutes(path: string, server: ServerType) {
       }
     },
     {
+      beforeHandle: isAdmin,
       params: t.Object({
         id: t.String()
       }),
       body: t.Object({
-        previewImage: t.MaybeEmpty(t.String()),
+        previewImage: t.Optional(t.String()),
         htmlContent: t.String()
       })
     }
@@ -120,10 +108,7 @@ export async function addTemplateRoutes(path: string, server: ServerType) {
         return 'The template has documents, please delete the documents first'
       }
       try {
-        const ret = await db
-          .delete(templates)
-          .where(eq(templates.id, params.id))
-          .returning()
+        const ret = await db.delete(templates).where(eq(templates.id, params.id)).returning()
         return ret.length > 0
       } catch (error) {
         set.status = 500
@@ -131,6 +116,7 @@ export async function addTemplateRoutes(path: string, server: ServerType) {
       }
     },
     {
+      beforeHandle: isAdmin,
       params: t.Object({
         id: t.String()
       })

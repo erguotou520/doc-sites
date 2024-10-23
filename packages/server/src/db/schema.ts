@@ -87,7 +87,8 @@ export const userInvitedDocuments = sqliteTable('users_to_documents', {
     .references(() => users.id),
   documentId: text('document_id')
     .notNull()
-    .references(() => documents.id)
+    .references(() => documents.id),
+  createdAt: text('created_at').default(sql`(datetime('now', 'localtime'))`)
 },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.documentId] })
@@ -112,7 +113,9 @@ export const userEditedDocuments = sqliteTable('users_to_documents', {
     .references(() => users.id),
   documentId: text('document_id')
     .notNull()
-    .references(() => documents.id)
+    .references(() => documents.id),
+  createdAt: text('created_at').default(sql`(datetime('now', 'localtime'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now', 'localtime'))`)
 },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.documentId] })
@@ -149,7 +152,9 @@ export const documents = sqliteTable('documents', {
   appId: text('app_id').references(() => apps.id),
   slug: text('slug').unique(),
   // who can view this document
-  viewPermission: text('view_permission', { enum: ['public', 'editable', 'logged'] }).default('public')
+  viewPermission: text('view_permission', { enum: ['public', 'editable', 'logged'] }).default('public'),
+  // delete time
+  deletedAt: text('deleted_at')
 })
 
 export const documentsRelations = relations(documents, ({ one, many }) => ({

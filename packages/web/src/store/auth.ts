@@ -1,7 +1,8 @@
-import { getMyInfo, getToken, postLogin, postRegister, setToken } from '@/api'
-import { LoginForm, RegisterForm, UserClaim } from '@/types'
+import { client } from '@/api'
+import type { LoginForm, RegisterForm, UserClaim } from '@/types'
 import { onExpired } from '@/utils'
 import { create } from 'zustand'
+import { getAccessToken, setAccessToken } from './token'
 
 export type AuthState = {
   user: UserClaim | null
@@ -18,7 +19,7 @@ export type AuthState = {
 }
 
 async function fetchMe() {
-  const { error, data } = await getMyInfo()
+  const { error, data } = await client.get('/api/user/me')
   return { user: data, error: error }
 }
 
@@ -34,7 +35,7 @@ export const useAuth = create<AuthState>((set, get) => ({
   async init() {
     if (get().loading) return
     set({ loading: true })
-    const accessToken = getToken()
+    const accessToken = getAccessToken()
     if (accessToken) {
       const { user } = await fetchMe()
       set({ user })
@@ -42,9 +43,9 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ loading: false, ready: true })
   },
   async register(args) {
-    const { error, data } = await postRegister(args)
+    const { error, data } = await client.post('/register', { body: args })
     if (!error) {
-      setToken(data.token)
+      setAccessToken(data.token)
       const { user } = await fetchMe()
       set({ user })
       return !!user
@@ -52,9 +53,9 @@ export const useAuth = create<AuthState>((set, get) => ({
     return false
   },
   async login(args) {
-    const { error, data } = await postLogin(args)
+    const { error, data } = await client.post('/login', { body: args })
     if (!error) {
-      setToken(data.token)
+      setAccessToken(data.token)
       const { user } = await fetchMe()
       set({ user })
       return !!user

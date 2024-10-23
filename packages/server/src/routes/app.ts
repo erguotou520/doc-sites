@@ -1,7 +1,7 @@
 import { db } from '@/db'
 import { apps, documents, users, usersParticipatedApps } from '@/db/schema'
 import type { ServerType, UserClaims } from '@/types'
-import { and, count, eq, inArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { t } from 'elysia'
 
 export async function addAppRoutes(path: string, server: ServerType) {
@@ -14,15 +14,16 @@ export async function addAppRoutes(path: string, server: ServerType) {
       const list = await db.query.apps.findMany({
         where: cond,
         offset: query.offset ?? 0,
-        limit: query.limit ?? 10
+        limit: query.limit ?? 10,
+        orderBy: desc(apps.createdAt)
       })
       const total = await db.select({ value: count() }).from(apps).where(cond)
       return { list, total: total[0].value }
     },
     {
       query: t.Object({
-        offset: t.MaybeEmpty(t.Numeric()),
-        limit: t.MaybeEmpty(t.Numeric())
+        offset: t.Optional(t.Numeric()),
+        limit: t.Optional(t.Numeric())
       })
     }
   )
@@ -118,8 +119,8 @@ export async function addAppRoutes(path: string, server: ServerType) {
       body: t.Object({
         name: t.String(),
         title: t.String(),
-        logo: t.MaybeEmpty(t.String()),
-        description: t.MaybeEmpty(t.String())
+        logo: t.Optional(t.String()),
+        description: t.Optional(t.String())
       })
     }
   )
@@ -152,9 +153,9 @@ export async function addAppRoutes(path: string, server: ServerType) {
         id: t.String()
       }),
       body: t.Object({
-        logo: t.MaybeEmpty(t.String()),
+        logo: t.Optional(t.String()),
         title: t.String(),
-        description: t.MaybeEmpty(t.String())
+        description: t.Optional(t.String())
       })
     }
   )
@@ -181,6 +182,30 @@ export async function addAppRoutes(path: string, server: ServerType) {
         userId: id,
         appId: params.id
       }))).returning()
+      return ret.length > 0
+    },
+    {
+      body: t.Object({
+        userIds: t.Array(t.String())
+      })
+    }
+  )
+
+  // remove users from an app
+  server.delete(
+    `${path}/:id/removeUsers`,
+    async ({ body, params, bearer, jwt, set }) => {
+      const user = (await jwt.verify(bearer)) as UserClaims
+      // check if the user is the creator of the app
+      const app = await db.query.apps.findFirst({
+        where: and(eq(apps.creatorId, user.id), eq(apps.id, params.id))
+      })
+      if (!app) {
+        set.status = 403
+        return 'You are not the creator of this app'
+      }
+      // remove users from the app
+      const ret = await db.delete(usersParticipatedApps).where(and(eq(usersParticipatedApps.appId, params.id), inArray(usersParticipatedApps.userId, body.userIds))).returning()
       return ret.length > 0
     },
     {

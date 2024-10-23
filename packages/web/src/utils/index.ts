@@ -1,9 +1,9 @@
-import { removeToken } from '@/api'
 import { globalNavigate } from '@/components/GlobalHistory'
 import { AppRoutes } from '@/constants'
+import { clearToken } from '@/store'
 
 export function onExpired() {
-  removeToken()
+  clearToken()
   globalNavigate(AppRoutes.Login, { replace: true })
 }
 

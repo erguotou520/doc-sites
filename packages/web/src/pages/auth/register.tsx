@@ -1,8 +1,10 @@
+import type { OpenAPIs } from '@/api/schema'
 import { AppRoutes } from '@/constants'
 import { useAuth } from '@/store'
-import { RegisterForm } from '@/types'
 import { Button, Form, Input } from 'antd'
 import { NavLink, useNavigate } from 'react-router-dom'
+
+type RegisterForm = OpenAPIs['post']['/register']['body']
 
 const RegisterPage = () => {
   const navigate = useNavigate()

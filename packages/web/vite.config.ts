@@ -12,9 +12,9 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5174,
+    port: 9200,
     proxy: {
-      '^/(api|login|register|webhook|info)': 'http://localhost:9100'
+      '^/(api|login|register|view|info)': 'http://localhost:9100'
     }
   },
   plugins: [

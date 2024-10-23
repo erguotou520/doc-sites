@@ -1,20 +1,21 @@
 import { db } from '@/db'
 import { apps, documents, userEditedDocuments, userInvitedDocuments, users, usersParticipatedApps } from '@/db/schema'
 import type { ServerType, UserClaims } from '@/types'
-import { and, count, eq, exists, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, exists, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import { t } from 'elysia'
 
 export async function addDocumentRoutes(path: string, server: ServerType) {
   // get app's documents
   server.get(
-    `/${path}/:appId`,
+    `${path}/:appId`,
     async ({ query, params: { appId }, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
-      const cond = and(eq(documents.appId, appId), eq(documents.creatorId, user.id))
+      const cond = and(eq(documents.appId, appId), eq(documents.creatorId, user.id), isNotNull(documents.deletedAt))
       const list = await db.query.documents.findMany({
         where: cond,
         offset: query.offset ?? 0,
-        limit: query.limit ?? 10
+        limit: query.limit ?? 10,
+        orderBy: desc(documents.createdAt)
       })
       const total = await db.select({ value: count() }).from(apps).where(cond)
       return { list, total: total[0].value }
@@ -24,8 +25,8 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
         appId: t.String()
       }),
       query: t.Object({
-        offset: t.MaybeEmpty(t.Numeric()),
-        limit: t.MaybeEmpty(t.Numeric())
+        offset: t.Optional(t.Numeric()),
+        limit: t.Optional(t.Numeric())
       })
     }
   )
@@ -35,26 +36,83 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
     `${path}/invited`,
     async ({ query, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
-      const cond = eq(userEditedDocuments.userId, user.id)
-      const list = await db.query.userInvitedDocuments.findMany({
-        where: cond,
-        offset: query.offset ?? 0,
-        limit: query.limit ?? 10
-      })
+      const cond = and(eq(userEditedDocuments.userId, user.id), isNotNull(documents.deletedAt))
+      const list = (
+        await db.query.userInvitedDocuments.findMany({
+          where: cond,
+          offset: query.offset ?? 0,
+          limit: query.limit ?? 10,
+          orderBy: desc(userInvitedDocuments.createdAt),
+          with: {
+            document: true
+          }
+        })
+      ).map(item => item.document)
       const total = await db.select({ value: count() }).from(userEditedDocuments).where(cond)
       return { list, total: total[0].value }
     },
     {
       query: t.Object({
-        offset: t.MaybeEmpty(t.Numeric()),
-        limit: t.MaybeEmpty(t.Numeric())
+        offset: t.Optional(t.Numeric()),
+        limit: t.Optional(t.Numeric())
+      })
+    }
+  )
+
+  // get recent edited documents
+  server.get(
+    `${path}/recent`,
+    async ({ query, bearer, jwt }) => {
+      const user = (await jwt.verify(bearer)) as UserClaims
+      const cond = and(eq(userEditedDocuments.userId, user.id), isNotNull(documents.deletedAt))
+      const list = (
+        await db.query.userEditedDocuments.findMany({
+          where: cond,
+          offset: query.offset ?? 0,
+          limit: query.limit ?? 10,
+          orderBy: desc(userEditedDocuments.updatedAt),
+          with: {
+            document: true
+          }
+        })
+      ).map(item => item.document)
+      const total = await db.select({ value: count() }).from(userEditedDocuments).where(cond)
+      return { list, total: total[0].value }
+    },
+    {
+      query: t.Object({
+        offset: t.Optional(t.Numeric()),
+        limit: t.Optional(t.Numeric())
+      })
+    }
+  )
+
+  // get trashed documents
+  server.get(
+    `${path}/:appId/trashed`,
+    async ({ query, params: { appId }, bearer, jwt }) => {
+      const user = (await jwt.verify(bearer)) as UserClaims
+      const cond = and(eq(documents.appId, appId), eq(documents.creatorId, user.id), isNull(documents.deletedAt))
+      const list = await db.query.documents.findMany({
+        where: cond,
+        offset: query.offset ?? 0,
+        limit: query.limit ?? 10,
+        orderBy: desc(documents.createdAt)
+      })
+      const total = await db.select({ value: count() }).from(documents).where(cond)
+      return { list, total: total[0].value }
+    },
+    {
+      query: t.Object({
+        offset: t.Optional(t.Numeric()),
+        limit: t.Optional(t.Numeric())
       })
     }
   )
 
   // get a document and its editors
   server.get(
-    `/${path}/:appId/:id`,
+    `${path}/:appId/:id`,
     async ({ params: { appId, id }, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       const document = await db.query.documents.findFirst({
@@ -68,6 +126,7 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
             }
           },
           editedUsers: {
+            orderBy: desc(userEditedDocuments.updatedAt),
             with: {
               user: {
                 columns: {
@@ -94,7 +153,7 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
 
   // create a new document
   server.post(
-    `/${path}/:appId`,
+    `${path}/:appId`,
     async ({ body: { publish, ...body }, params: { appId }, bearer, jwt, set }) => {
       const jwtUser = (await jwt.verify(bearer)) as UserClaims
       const user = await db.query.users.findFirst({
@@ -105,12 +164,10 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
         where: or(
           eq(apps.id, appId),
           exists(
-            db.select()
+            db
+              .select()
               .from(usersParticipatedApps)
-              .where(and(
-                eq(usersParticipatedApps.appId, appId),
-                eq(usersParticipatedApps.userId, jwtUser.id)
-              ))
+              .where(and(eq(usersParticipatedApps.appId, appId), eq(usersParticipatedApps.userId, jwtUser.id)))
           )
         )
       })
@@ -148,7 +205,7 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
               creatorId: user!.id,
               publishTime: publish ? sql`(datetime('now', 'localtime'))` : null,
               lastEditTime: sql`(datetime('now', 'localtime'))`,
-              lastEditorId: user!.id,
+              lastEditorId: user!.id
             }
           ])
           .returning()
@@ -177,7 +234,7 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
 
   // update a document setting
   server.put(
-    `/${path}/:appId/:id`,
+    `${path}/:appId/:id`,
     async ({ body: { publish, ...body }, params: { appId, id }, bearer, jwt, set }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       const document = await db.query.documents.findFirst({
@@ -199,7 +256,7 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
           .update(documents)
           .set({
             ...body,
-            updatedAt: sql`(datetime('now', 'localtime'))`,
+            updatedAt: sql`(datetime('now', 'localtime'))`
           })
           .where(eq(documents.id, id))
           .returning()
@@ -221,14 +278,14 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
         title: t.String(),
         templateId: t.String(),
         slug: t.String(),
-        publish: t.MaybeEmpty(t.Boolean())
+        publish: t.Optional(t.Boolean())
       })
     }
   )
 
   // update a document content
   server.put(
-    `/${path}/:appId/:id/content`,
+    `${path}/:appId/:id/content`,
     async ({ body: { content }, params: { appId, id }, bearer, jwt, set }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       // 检查用户是否有权限编辑该文档
@@ -251,9 +308,10 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
       }
 
       // 检查用户是否为文档发起人、所属App的参与人或文档的邀请人
-      const canEdit = document.creatorId === user.id ||
-                      document.app?.participatedUsers.some(u => u.userId === user.id) ||
-                      document.invitedUsers.some(u => u.userId === user.id)
+      const canEdit =
+        document.creatorId === user.id ||
+        document.app?.participatedUsers.some(u => u.userId === user.id) ||
+        document.invitedUsers.some(u => u.userId === user.id)
 
       if (!canEdit) {
         set.status = 403
@@ -261,17 +319,28 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
       }
 
       try {
-        const ret = await db.update(documents).set({
-          content,
-          lastEditTime: sql`(datetime('now', 'localtime'))`,
-          lastEditorId: user.id
-        }).where(eq(documents.id, id)).returning()
+        const ret = await db
+          .update(documents)
+          .set({
+            content,
+            lastEditTime: sql`(datetime('now', 'localtime'))`,
+            lastEditorId: user.id
+          })
+          .where(eq(documents.id, id))
+          .returning()
         // record the editor if not exists
         if (!document.editedUsers.some(u => u.userId === user.id)) {
           await db.insert(userEditedDocuments).values({
             documentId: id,
             userId: user.id
           })
+        } else {
+          await db
+            .update(userEditedDocuments)
+            .set({
+              updatedAt: sql`(datetime('now', 'localtime'))`
+            })
+            .where(and(eq(userEditedDocuments.documentId, id), eq(userEditedDocuments.userId, user.id)))
         }
         if (ret.length > 0) {
           return ret[0]
@@ -295,7 +364,7 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
 
   // delete an document, only the creator can delete it
   server.delete(
-    `/${path}/:appId/:id`,
+    `${path}/:appId/:id`,
     async ({ params: { appId, id }, bearer, jwt, set }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       try {
@@ -319,7 +388,7 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
 
   // invite users to a document
   server.post(
-    `/${path}/:appId/:id/invite`,
+    `${path}/:appId/:id/invite`,
     async ({ body, params: { appId, id }, bearer, jwt, set }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
       // check if the document exists
@@ -340,15 +409,56 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
       // remove the users that already invited
       const usersToInvite = body.userIds.filter(userId => !document.invitedUsers.some(u => u.userId === userId))
       try {
-        const ret = await db.insert(userInvitedDocuments).values(usersToInvite.map(userId => ({
-          documentId: id,
-          userId
-        }))).returning()
+        const ret = await db
+          .insert(userInvitedDocuments)
+          .values(
+            usersToInvite.map(userId => ({
+              documentId: id,
+              userId,
+              createdAt: sql`(datetime('now', 'localtime'))`
+            }))
+          )
+          .returning()
         return ret.length > 0
       } catch (error) {
         set.status = 500
         return 'Failed to invite users to a document'
       }
+    },
+    {
+      params: t.Object({
+        appId: t.String(),
+        id: t.String()
+      }),
+      body: t.Object({
+        userIds: t.Array(t.String())
+      })
+    }
+  )
+
+  // remove users from a document
+  server.delete(
+    `${path}/:appId/:id/removeUsers`,
+    async ({ body, params: { appId, id }, bearer, jwt, set }) => {
+      const user = (await jwt.verify(bearer)) as UserClaims
+      // check if the document exists
+      const document = await db.query.documents.findFirst({
+        where: and(eq(documents.appId, appId), eq(documents.id, id))
+      })
+      if (!document) {
+        set.status = 404
+        return 'The document does not exist'
+      }
+      if (document.creatorId !== user.id) {
+        set.status = 403
+        return 'Only the creator can remove users from a document'
+      }
+      // remove users from the document
+      const ret = await db
+        .delete(userInvitedDocuments)
+        .where(and(eq(userInvitedDocuments.documentId, id), inArray(userInvitedDocuments.userId, body.userIds)))
+        .returning()
+      return ret.length > 0
     },
     {
       params: t.Object({

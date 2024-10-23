@@ -3,6 +3,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { HashRouter as Router, useLocation, useNavigate, useRoutes } from 'react-router-dom'
 import routes from '~react-pages'
 import { GlobalHistory } from './components/GlobalHistory'
+import GlobalMessage from './components/GlobalMessage'
 import { AppRoutes } from './constants'
 import { useTheme } from './hooks/theme'
 import { useAuth, useInfo } from './store'
@@ -23,9 +24,10 @@ function App() {
   return (
     <Router>
       <GlobalHistory />
+      <GlobalMessage />
       <ConfigProvider theme={{
         token: {
-          colorPrimary: '#18181b',
+          colorPrimary: '#0d959e',
         },
         algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm
       }}>

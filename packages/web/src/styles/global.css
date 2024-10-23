@@ -6,7 +6,7 @@
 }
 
 html {
-  --primary-color: #18181b;
+  --primary-color: #0d959e;
   --primary-foreground-color: #fafafa;
   --bg-color: white;
   --bg-hover-color: #f2f2f2;
@@ -14,19 +14,19 @@ html {
   --muted-color: #d3d3d3;
   --muted-foreground-color: #71717a;
   --border-color: #e5e7eb;
-  --shadow-color: rgba(0, 0, 0, 0.1);
+  --shadow-color: rgba(13, 149, 158, 0.2);
 }
 
 html.dark {
   --primary-color: #fafafa;
-  --primary-foreground-color: #18181b;
+  --primary-foreground-color: #0d959e;
   --bg-color: #191f2d;
   --bg-hover-color: #2f3640;
   --text-color: #e9e9ea;
   --muted-color: #97979e;
   --muted-foreground-color: #71717a;
   --border-color: #2f3640;
-  --shadow-color: rgba(192, 190, 190, 0.2);
+  --shadow-color: rgba(13, 149, 158, 0.2);
 }
 
 body {
@@ -38,4 +38,10 @@ body {
 
 a {
   text-decoration: none;
+  color: var(--primary-color);
+}
+
+a:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
 }

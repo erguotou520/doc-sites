@@ -24,8 +24,8 @@ export async function addUserRoutes(path: string, server: ServerType) {
   },
   {
     body: t.Object({
-      nickname: t.MaybeEmpty(t.String()),
-      avatar: t.MaybeEmpty(t.String())
+      nickname: t.Optional(t.String()),
+      avatar: t.Optional(t.String())
     })
   })
 }

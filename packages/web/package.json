@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "bunx --bun vite",
-    "build": "rm -rf ../server/html && bunx --bun vite build"
+    "dev": "vite",
+    "build": "rm -rf ../server/html && vite build",
+    "gen:sdk": "o2t generate typescript"
   },
   "dependencies": {
     "@ant-design/icons": "^5.5.1",
+    "@ant-design/pro-components": "^2.8.1",
+    "@tinymce/tinymce-react": "^5.1.1",
     "ahooks": "^3.8.1",
     "antd": "^5.21.4",
     "react": "^18.3.1",
@@ -16,6 +19,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@doremijs/o2t": "^0.1.4",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.1",
     "@unocss/reset": "^0.63.4",

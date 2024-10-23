@@ -1,4 +1,4 @@
-import { getInfo } from '@/api'
+import { client } from '@/api'
 import { create } from 'zustand'
 
 export type InfoState = {
@@ -14,7 +14,7 @@ export const useInfo = create<InfoState>((set, get) => ({
     if (get().ready) {
       return
     }
-    const { data } = await getInfo()
+    const { data } = await client.get('/info')
     if ('disableRegistration' in data) {
       set({
         info: data

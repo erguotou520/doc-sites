@@ -8,6 +8,7 @@ import { addLoginRoutes } from './login'
 import { addRegisterRoutes } from './register'
 import { addRenderRoutes } from './render'
 import { addTagsRoutes } from './tags'
+import { addTemplateRoutes } from './template'
 import { addUserRoutes } from './user'
 
 export function registerAPIRoutes(server: ServerType) {
@@ -48,6 +49,7 @@ export function registerAPIRoutes(server: ServerType) {
       addAppRoutes('/apps', app)
       addDocumentRoutes('/documents', app)
       addTagsRoutes('/tags', app)
+      addTemplateRoutes('/templates', app)
       return app
     }
   )
