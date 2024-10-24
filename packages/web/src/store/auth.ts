@@ -10,6 +10,7 @@ export type AuthState = {
   loading: boolean
   computed: {
     logged: boolean
+    role: 'admin' | 'user'
   }
   init: () => Promise<void>
   register: (args: RegisterForm) => Promise<boolean>
@@ -30,6 +31,9 @@ export const useAuth = create<AuthState>((set, get) => ({
   computed: {
     get logged() {
       return !!get().user
+    },
+    get role() {
+      return get().user?.role ?? 'user'
     }
   },
   async init() {

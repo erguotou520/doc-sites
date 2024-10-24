@@ -119,6 +119,7 @@ export async function addAppRoutes(path: string, server: ServerType) {
       body: t.Object({
         name: t.String(),
         title: t.String(),
+        icon: t.Optional(t.String()),
         logo: t.Optional(t.String()),
         description: t.Optional(t.String())
       })
@@ -154,6 +155,7 @@ export async function addAppRoutes(path: string, server: ServerType) {
       }),
       body: t.Object({
         logo: t.Optional(t.String()),
+        favicon: t.Optional(t.String()),
         title: t.String(),
         description: t.Optional(t.String())
       })

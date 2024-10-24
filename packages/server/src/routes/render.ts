@@ -61,7 +61,11 @@ export async function addRenderRoutes(path: string, server: ServerType) {
       if (!document.template) {
         return document.content
       }
-      const html = document.template.htmlContent.replace('{{content}}', document.content)
+      const html = document.template.htmlContent
+        .replaceAll('{{appName}}', appName)
+        .replaceAll('{{title}}', document.title)
+        .replaceAll('{{content}}', document.content)
+        .replaceAll('{{favicon}}', app.favicon ?? '/_static/default.favicon.png')
       return html
     },
     {

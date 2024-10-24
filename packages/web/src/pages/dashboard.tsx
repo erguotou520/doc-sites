@@ -1,16 +1,30 @@
 import { AppRoutes } from '@/constants'
 import { useAuth } from '@/store'
-import { FileOutlined, TagsOutlined } from '@ant-design/icons'
+import { FileOutlined, SettingOutlined, TagsOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
 import { Dropdown, Menu, Modal } from 'antd'
 import { useEffect } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 const { useModal } = Modal
 
+const adminMenus = [
+  { key: 'tags', label: '标签管理', icon: <TagsOutlined /> },
+  { key: 'templates', label: '模板管理', icon: <FileOutlined /> },
+  { key: 'users', label: '用户管理', icon: <UserOutlined /> },
+  { key: 'apps', label: '应用管理', icon: <TeamOutlined /> },
+  { key: 'documents', label: '文档管理', icon: <FileOutlined /> },
+  { key: 'settings', label: '系统设置', icon: <SettingOutlined /> }
+]
+
+const userMenus = [
+  { key: 'recent', label: '最近文档', icon: <FileOutlined /> },
+  { key: 'invited', label: '我参与的', icon: <FileOutlined /> }
+]
+
 const DashboardLayout = () => {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { user, logout } = useAuth()
+  const { user, computed: { role }, logout } = useAuth()
   const [modal, modalContextHolder] = useModal()
 
   const confirmLogout = () => {
@@ -26,9 +40,13 @@ const DashboardLayout = () => {
 
   useEffect(() => {
     if (pathname === AppRoutes.Dashboard) {
-      // navigate(AppRoutes.Organizations, { replace: true })
+      if (role === 'admin') {
+        navigate(AppRoutes.DashboardTags, { replace: true })
+      } else {
+        navigate(AppRoutes.DashboardDocumentsRecent, { replace: true })
+      }
     }
-  }, [pathname, navigate])
+  }, [pathname, role, navigate])
 
   return (
     <div>
@@ -49,10 +67,7 @@ const DashboardLayout = () => {
           className="w-40 mr-4"
           mode="vertical"
           selectedKeys={[pathname.replace('/dashboard/', '')]}
-          items={[
-            { key: 'tags', label: '标签管理', icon: <TagsOutlined /> },
-            { key: 'templates', label: '模板管理', icon: <FileOutlined /> }
-          ]}
+          items={role === 'admin' ? adminMenus : userMenus}
           onClick={({ key }) => {
             navigate(`/dashboard/${key}`)
           }}

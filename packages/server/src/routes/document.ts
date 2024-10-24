@@ -12,6 +12,18 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
       const user = (await jwt.verify(bearer)) as UserClaims
       const cond = and(eq(documents.appId, appId), eq(documents.creatorId, user.id), isNotNull(documents.deletedAt))
       const list = await db.query.documents.findMany({
+        with: {
+          app: {
+            columns: {
+              name: true
+            }
+          },
+          creator: {
+            columns: {
+              nickname: true
+            }
+          }
+        },
         where: cond,
         offset: query.offset ?? 0,
         limit: query.limit ?? 10,
@@ -36,7 +48,7 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
     `${path}/invited`,
     async ({ query, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
-      const cond = and(eq(userEditedDocuments.userId, user.id), isNotNull(documents.deletedAt))
+      const cond = and(eq(userEditedDocuments.userId, user.id))
       const list = (
         await db.query.userInvitedDocuments.findMany({
           where: cond,
@@ -44,7 +56,20 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
           limit: query.limit ?? 10,
           orderBy: desc(userInvitedDocuments.createdAt),
           with: {
-            document: true
+            document: {
+              with: {
+                app: {
+                  columns: {
+                    name: true
+                  }
+                },
+                creator: {
+                  columns: {
+                    nickname: true
+                  }
+                }
+              }
+            }
           }
         })
       ).map(item => item.document)
@@ -64,7 +89,7 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
     `${path}/recent`,
     async ({ query, bearer, jwt }) => {
       const user = (await jwt.verify(bearer)) as UserClaims
-      const cond = and(eq(userEditedDocuments.userId, user.id), isNotNull(documents.deletedAt))
+      const cond = and(eq(userEditedDocuments.userId, user.id))
       const list = (
         await db.query.userEditedDocuments.findMany({
           where: cond,
@@ -72,7 +97,20 @@ export async function addDocumentRoutes(path: string, server: ServerType) {
           limit: query.limit ?? 10,
           orderBy: desc(userEditedDocuments.updatedAt),
           with: {
-            document: true
+            document: {
+              with: {
+                app: {
+                  columns: {
+                    name: true
+                  }
+                },
+                creator: {
+                  columns: {
+                    nickname: true
+                  }
+                }
+              }
+            }
           }
         })
       ).map(item => item.document)

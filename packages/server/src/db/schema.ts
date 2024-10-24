@@ -40,6 +40,7 @@ export const apps = sqliteTable('apps', {
   ...commonColumns(),
   name: text('name').unique().notNull(),
   logo: text('logo'),
+  favicon: text('favicon'),
   title: text('title').notNull(),
   description: text('description'),
   creatorId: text('creator_id').references(() => users.id)
@@ -81,7 +82,7 @@ export const usersToAppsRelations = relations(usersParticipatedApps, ({ one }) =
 }))
 
 // user invited documents
-export const userInvitedDocuments = sqliteTable('users_to_documents', {
+export const userInvitedDocuments = sqliteTable('user_invited_documents', {
   userId: text('user_id')
     .notNull()
     .references(() => users.id),
@@ -107,7 +108,7 @@ export const userInvitedDocumentsRelations = relations(userInvitedDocuments, ({ 
 }))
 
 // user edited documents
-export const userEditedDocuments = sqliteTable('users_to_documents', {
+export const userEditedDocuments = sqliteTable('user_edited_documents', {
   userId: text('user_id')
     .notNull()
     .references(() => users.id),
@@ -151,6 +152,7 @@ export const documents = sqliteTable('documents', {
   lastEditorId: text('last_editor_id').references(() => users.id),
   appId: text('app_id').references(() => apps.id),
   slug: text('slug').unique(),
+  remark: text('remark'),
   // who can view this document
   viewPermission: text('view_permission', { enum: ['public', 'editable', 'logged'] }).default('public'),
   // delete time
@@ -166,6 +168,10 @@ export const documentsRelations = relations(documents, ({ one, many }) => ({
     fields: [documents.lastEditorId],
     references: [users.id]
   }),
+  creator: one(users, {
+    fields: [documents.creatorId],
+    references: [users.id]
+  }),
   template: one(templates, {
     fields: [documents.templateId],
     references: [templates.id]
@@ -175,7 +181,7 @@ export const documentsRelations = relations(documents, ({ one, many }) => ({
   tags: many(documentToTags)
 }))
 
-export const tags = sqliteTable('document_tags', {
+export const tags = sqliteTable('tags', {
   ...commonColumns(),
   name: text('name').notNull(),
   color: text('color').default('#000000'),

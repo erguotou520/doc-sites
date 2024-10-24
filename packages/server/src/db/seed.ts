@@ -26,4 +26,16 @@ if (tags.length === 0) {
   ])
 }
 
+const templates = await db.query.templates.findMany()
+if (templates.length === 0) {
+  const mobileTemplate = await Bun.file('./db/seed/templates/mobile.html').text()
+  await db.insert(schema.templates).values([
+    {
+      name: '通用页面',
+      previewImage: '/_static/mobile.preview.png',
+      htmlContent: mobileTemplate
+    }
+  ])
+}
+
 console.log('Seeding complete.')

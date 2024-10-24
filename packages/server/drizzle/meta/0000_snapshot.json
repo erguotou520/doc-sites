@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b20793d2-4dbd-47f8-ab0f-b92d8777aa77",
+  "id": "2128ec6d-77de-4778-97bf-7c44f8df8553",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "apps": {
@@ -39,6 +39,13 @@
         },
         "logo": {
           "name": "logo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "favicon": {
+          "name": "favicon",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -127,10 +134,10 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "document_to_tags_tag_id_document_tags_id_fk": {
-          "name": "document_to_tags_tag_id_document_tags_id_fk",
+        "document_to_tags_tag_id_tags_id_fk": {
+          "name": "document_to_tags_tag_id_tags_id_fk",
           "tableFrom": "document_to_tags",
-          "tableTo": "document_tags",
+          "tableTo": "tags",
           "columnsFrom": [
             "tag_id"
           ],
@@ -242,6 +249,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "remark": {
+          "name": "remark",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "view_permission": {
           "name": "view_permission",
           "type": "text",
@@ -249,6 +263,13 @@
           "notNull": false,
           "autoincrement": false,
           "default": "'public'"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -318,8 +339,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "document_tags": {
-      "name": "document_tags",
+    "tags": {
+      "name": "tags",
       "columns": {
         "id": {
           "name": "id",
@@ -443,8 +464,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "users_to_documents": {
-      "name": "users_to_documents",
+    "user_edited_documents": {
+      "name": "user_edited_documents",
       "columns": {
         "user_id": {
           "name": "user_id",
@@ -459,13 +480,29 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now', 'localtime'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now', 'localtime'))"
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "users_to_documents_user_id_users_id_fk": {
-          "name": "users_to_documents_user_id_users_id_fk",
-          "tableFrom": "users_to_documents",
+        "user_edited_documents_user_id_users_id_fk": {
+          "name": "user_edited_documents_user_id_users_id_fk",
+          "tableFrom": "user_edited_documents",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
@@ -476,9 +513,9 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "users_to_documents_document_id_documents_id_fk": {
-          "name": "users_to_documents_document_id_documents_id_fk",
-          "tableFrom": "users_to_documents",
+        "user_edited_documents_document_id_documents_id_fk": {
+          "name": "user_edited_documents_document_id_documents_id_fk",
+          "tableFrom": "user_edited_documents",
           "tableTo": "documents",
           "columnsFrom": [
             "document_id"
@@ -491,12 +528,79 @@
         }
       },
       "compositePrimaryKeys": {
-        "users_to_documents_user_id_document_id_pk": {
+        "user_edited_documents_user_id_document_id_pk": {
           "columns": [
             "user_id",
             "document_id"
           ],
-          "name": "users_to_documents_user_id_document_id_pk"
+          "name": "user_edited_documents_user_id_document_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "user_invited_documents": {
+      "name": "user_invited_documents",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(datetime('now', 'localtime'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "user_invited_documents_user_id_users_id_fk": {
+          "name": "user_invited_documents_user_id_users_id_fk",
+          "tableFrom": "user_invited_documents",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "user_invited_documents_document_id_documents_id_fk": {
+          "name": "user_invited_documents_document_id_documents_id_fk",
+          "tableFrom": "user_invited_documents",
+          "tableTo": "documents",
+          "columnsFrom": [
+            "document_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_invited_documents_user_id_document_id_pk": {
+          "columns": [
+            "user_id",
+            "document_id"
+          ],
+          "name": "user_invited_documents_user_id_document_id_pk"
         }
       },
       "uniqueConstraints": {},

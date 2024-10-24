@@ -4,6 +4,7 @@ CREATE TABLE `apps` (
 	`updated_at` text DEFAULT (datetime('now', 'localtime')),
 	`name` text NOT NULL,
 	`logo` text,
+	`favicon` text,
 	`title` text NOT NULL,
 	`description` text,
 	`creator_id` text,
@@ -16,7 +17,7 @@ CREATE TABLE `document_to_tags` (
 	`tag_id` text,
 	PRIMARY KEY(`document_id`, `tag_id`),
 	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`tag_id`) REFERENCES `document_tags`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`tag_id`) REFERENCES `tags`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE TABLE `documents` (
@@ -32,7 +33,9 @@ CREATE TABLE `documents` (
 	`last_editor_id` text,
 	`app_id` text,
 	`slug` text,
+	`remark` text,
 	`view_permission` text DEFAULT 'public',
+	`deleted_at` text,
 	FOREIGN KEY (`template_id`) REFERENCES `templates`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`creator_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`last_editor_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
@@ -40,7 +43,7 @@ CREATE TABLE `documents` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `documents_slug_unique` ON `documents` (`slug`);--> statement-breakpoint
-CREATE TABLE `document_tags` (
+CREATE TABLE `tags` (
 	`id` text PRIMARY KEY NOT NULL,
 	`created_at` text DEFAULT (datetime('now', 'localtime')),
 	`updated_at` text DEFAULT (datetime('now', 'localtime')),
@@ -60,9 +63,20 @@ CREATE TABLE `templates` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `templates_name_unique` ON `templates` (`name`);--> statement-breakpoint
-CREATE TABLE `users_to_documents` (
+CREATE TABLE `user_edited_documents` (
 	`user_id` text NOT NULL,
 	`document_id` text NOT NULL,
+	`created_at` text DEFAULT (datetime('now', 'localtime')),
+	`updated_at` text DEFAULT (datetime('now', 'localtime')),
+	PRIMARY KEY(`user_id`, `document_id`),
+	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `user_invited_documents` (
+	`user_id` text NOT NULL,
+	`document_id` text NOT NULL,
+	`created_at` text DEFAULT (datetime('now', 'localtime')),
 	PRIMARY KEY(`user_id`, `document_id`),
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`document_id`) REFERENCES `documents`(`id`) ON UPDATE no action ON DELETE no action

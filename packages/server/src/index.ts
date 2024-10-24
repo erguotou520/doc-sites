@@ -17,6 +17,7 @@ export const server = new Elysia()
     })
   )
   .use(staticPlugin({ assets: 'html', prefix: '' }))
+  .use(staticPlugin({ assets: 'static', prefix: '/_static' }))
   .use(bearer())
   .use(
     jwt({
@@ -29,7 +30,7 @@ registerAPIRoutes(server)
 
 // log requests
 server.onRequest(({ request }) => {
-  if (!request.url.startsWith('/assets/')) {
+  if (!request.url.startsWith('/assets/') && !request.url.startsWith('/_static/')) {
     console.log('Request:', request.method, request.url)
   }
 })
